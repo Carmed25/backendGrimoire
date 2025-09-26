@@ -3,6 +3,9 @@ require('dotenv').config();
 const express= require('express');
 const mongoose = require('mongoose');
 const cors= require('cors');
+
+const Book = require ('./models/Book');
+
 //appel de la methode express
 const app=express();
 
@@ -33,10 +36,14 @@ mongoose.connect(process.env.MONGODB_URI)
 
 //route 
 app.post('/api/auth/signup',(req,res,next)=>{
-    console.log('données recues:',req.body);
-    res.status(201).json({
-        message:'identifiant crée!'
+    delete req.body._id;
+    const book = new Book({
+        ...req.body
     });
+    book.save()
+    .then(()=>res.status(201).json({message: 'Votre livre est enregistré.'}))
+    .catch(error=> res.status(400).json({error}));
+   
 });
 
 
