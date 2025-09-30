@@ -2,15 +2,22 @@ require('dotenv').config();
 //import de express avec require
 const express= require('express');
 const mongoose = require('mongoose');
+const bodyParser = require ('body-parser');
 const cors= require('cors');
+const corsOptions={
+    origin: '*', // front autorié
+    methods: ['GET','POST','PUT','DELETE','PATCH','OPTIONS'],
+    allowedHeaders:['Content-Type', 'Authorization'], // pour l'utilisation des tokens
+    credentials: true
+};
 
-const Book = require ('./models/Book');
+const bookRoutes = require('./routes/book');
 
 //appel de la methode express
 const app=express();
 
 
-app.use(cors());
+app.use(cors(corsOptions));
 // donne acces au corps JSON de la requete aussi bodyParser
 app.use(express.json());
 
@@ -26,39 +33,16 @@ mongoose.connect(process.env.MONGODB_URI)
 
 //ajout des headers CORS
 //app.use ((req, res, next)=>{
-  //  res.setHeader ('Access-Control-Allow-Origin','*');
-  //  res.setHeader('Access-Control-Allow-Headers','Origin,X-Requested-With,Content,Accept,Content-Type,Authorization');
-  //  res.setHeader('Access-Control-Allow-Methods','GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  //  next();
+  //  res.setHeader ('Access-Control-Allow-Origin', '*');
+    //res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content, Accept, Content-Type, Authorization');
+    //res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    //next();
 //});
 
-//Middlewaure pour log les requetes
 
-//route 
-app.post('/api/auth/signup',(req,res,next)=>{
-    delete req.body._id;
-    const book = new Book({
-        ...req.body
-    });
-    book.save()
-    .then(()=>res.status(201).json({message: 'Votre livre est enregistré.'}))
-    .catch(error=> res.status(400).json({error}));
-   
-});
+app.use(bodyParser.json());
 
-
-app.use((req,res,next)=>{
-    console.log('requete recue');
-    next();
-});
-
-
-
-app.use ((req,res)=> {
-    res.status(404).json({message:'route non trouvée'});
-    next();
-});
-
-
+//routes
+app.use('/api/books',bookRoutes);
 
 module.exports=app;
