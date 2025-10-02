@@ -12,6 +12,7 @@ const corsOptions={
 };
 
 const bookRoutes = require('./routes/book');
+const userRoutes = require ('./routes/user');
 
 //appel de la methode express
 const app=express();
@@ -44,5 +45,6 @@ app.use(bodyParser.json());
 
 //routes
 app.use('/api/books',bookRoutes);
+app.use('/api/auth', userRoutes);
 
 module.exports=app;
