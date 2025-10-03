@@ -33,3 +33,11 @@ exports.getAllBooks = (req, res, next)=>{
     .then(books=> res.status(200).json(books))
     .catch(error=>res.status(400).json({error}));
 };
+
+exports.bestRatingBook=(req,res, next)=>{
+
+};
+
+exports.notationBook=(req, res, next)=>{
+
+};
