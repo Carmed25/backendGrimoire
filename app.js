@@ -47,6 +47,7 @@ app.use(bodyParser.json());
 //routes
 app.use('/api/books',bookRoutes);
 app.use('/api/auth', userRoutes);
+//pour que les url images.nomfichier soient accessibles
 app.use('/images', express.static(path.join(__dirname,'images')));
 
 module.exports=app;

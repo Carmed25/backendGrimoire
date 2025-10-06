@@ -1,18 +1,45 @@
 const Book = require ('../models/Book');
+const path = require ('path');
 const fs = require ('fs');
+const sharp = require ('sharp');
 
-exports.createBook = (req,res,next)=>{
-    const bookObject = JSON.parse(req.body.book);
-    delete bookObject._id;
+
+exports.createBook = async (req,res,next)=>{
+    try{
+    const bookObject = JSON.parse(req.body.book);// conversion du champ book en objet JS
+    delete bookObject._id; // suppression de l'id envoyé dans son JSON
     delete bookObject._userId;
+
+    if (!req.file || !req.file.buffer){
+        return res.status(400).json({message:'Image manquante.'}); //vérifie si image ou en mémoire
+    }
+
+    //création du nom du fichier compressé et retrait du nom d'origine
+    const timestamp= Date.now(); //nombre en millisecondes pour dater l'image
+    const originalName = req.file.originalname.replace(/\s+/g, '_'); //remplace espace par _
+    const extension = 'webp';
+    const filename = `${timestamp}-${originalName}.${extension}`; // nom apres transformation
+    const imagesDir = path.join(__dirname, '..', 'images'); //lieu où sera crée image
+    const outputPath = path.join(imagesDir, filename);
+
+
+    // traitement avec sharp
+    await sharp(req.file.buffer)
+        .webp({quality:70})
+        .toFile(outputPath);
+        
+    //construction du livre à sauvegarder
     const book = new Book({
         ...bookObject,
         userId: req.auth.userId,
-        imageUrl:`${req.protocol}://${req.get('host')}/images/${req.file.filename}`
+        imageUrl:`${req.protocol}://${req.get('host')}/images/${filename}`
     });
-    book.save()
-    .then(()=> {res.status(201).json({message: 'Votre livre est enregistré.'})})
-    .catch(error=> {res.status(400).json({error})});
+
+    const bookSaved = await book.save();
+    res.status(201).json({message: 'Votre livre est enregistré.', book: bookSaved});
+    }catch (error) {
+        next(error);
+    }
 };
 
 exports.modifyBook = (req, res, next)=>{
