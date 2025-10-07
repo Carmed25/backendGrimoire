@@ -13,7 +13,6 @@ exports.createBook = async (req,res,next)=>{
     if (!req.file || !req.file.buffer){
         return res.status(400).json({message:'Image manquante.'}); //vérifie si image ou en mémoire
     }
-
     //création du nom du fichier compressé et retrait du nom d'origine
     const timestamp= Date.now(); //nombre en millisecondes pour dater l'image
     const originalName = req.file.originalname.replace(/\s+/g, '_'); //remplace espace par _
@@ -21,10 +20,14 @@ exports.createBook = async (req,res,next)=>{
     const filename = `${timestamp}-${originalName}.${extension}`; // nom apres transformation
     const imagesDir = path.join(__dirname, '..', 'images'); //lieu où sera crée image
     const outputPath = path.join(imagesDir, filename);
-
+     await fs.promises.mkdir(imagesDir, {recursive:true}); // pour creer dossier images si n'existe pas
 
     // traitement avec sharp
     await sharp(req.file.buffer)
+        .resize({
+            height:300,
+            fit:'inside'
+        })
         .webp({quality:70})
         .toFile(outputPath);
         
@@ -42,40 +45,83 @@ exports.createBook = async (req,res,next)=>{
     }
 };
 
-exports.modifyBook = (req, res, next)=>{
-    const bookObject = req.file ? {
-        ...JSON.parse(req.body.book),
-        imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
-    }:{ ...req.body};
-    delete bookObject._userId;
-    Book.findOne({_id:req.params.id})
-    .then((book)=>{
-        if(book.userId != req.auth.userId){
-            res.status(401).json({ message: 'Non autorisé'});
-        } else{
-            Book.updateOne({_id:req.params.id},{...bookObject, _id:req.params.id})
-            .then(()=> res.status(200).json({message:'Livre modifié.'}))
-            .catch(error=> res.status(401).json({error}));
-        }
-    })
-    .catch((error)=> {res.status(400).json({error});
-})};
 
-exports.deleteBook = (req, res, next)=>{
+
+exports.modifyBook = async (req, res, next)=>{
+    try{
+        let bookObject={};
+        //si une nouvelle image est chargée, traite image via Sharp
+        if (req.file && req.file.buffer){
+            const timestamp= Date.now();
+            const originalName = req.file.originalname.replace(/\s+/g, '_');
+            const extension = 'webp';
+            const filename= `${timestamp}-${originalName}.${extension}`;
+            const imagesDir = path.join(__dirname, '..' , 'images');
+            const outputPath = path.join(imagesDir, filename);
+            await fs.promises.mkdir(imagesDir, {recursive:true}); // pour creer dossier images si n'existe pas
+        //conversion et compression
+        await sharp(req.file.buffer)
+            .resize({
+                height:300,
+                fit: 'inside', //sans deformer image
+            })
+            .webp({quality:70})
+            .toFile(outputPath);
+        //bookobjet nomifié avec body et url 
+        const bookParsed= req.body.book ? JSON.parse(req.body.book) : {};
+        bookObject ={ 
+            ...bookParsed,
+            imageUrl: `${req.protocol}://${req.get('host')}/images/${filename}`
+        };
+        }else{
+            // si pas de nouvelle image juste données du body
+        bookObject = req.body.book ? JSON.parse(req.body.book) : { ... req.body};
+        }
+
+    delete bookObject._userId;
+
+    const book = await Book.findOne({_id:req.params.id})
+    if(!book){
+        return res.status(404).json({message: 'Livre non trouvé'});
+    }
+    if (book.userId.toString() !== req.auth.userId){
+        return res.status(401).json({ message: 'Non autorisé'});
+    }
+
+    await  Book.updateOne(
+        {_id:req.params.id},
+        {...bookObject, _id:req.params.id}
+    );
+    res.status(200).json({message:'Livre modifié.'});
+   
+}catch (error) {
+    next(error);
+}
+};
+
+exports.deleteBook = (req, res, next) => {
    Book.findOne({_id : req.params.id})
-   .then(book=> {
-    if (book.userId != req.auth.userId){
-        res.status(401).json({message :'Non autorisé.'});
+   .then(book => {
+    if (!book) {
+        return res.status(404).json({message: 'Livre non trouvé.'});
+    }
+    if (!book.userId || book.userId.toString() !== req.auth.userId) {
+        return res.status(401).json({message :'Non autorisé.'});
     } else {
         const filename = book.imageUrl.split('/images/')[1];
-        fs.unlink('images/${filename}',()=>{
+        fs.unlink(`images/${filename}`, err => {
+            if (err) {
+                console.warn('Erreur de suppression image:', err);
+            }
             Book.deleteOne({_id: req.params.id})
-            .then(()=>{res.status(200).json({message:'Livre supprimé.'})})
-            .catch (error=> res.status(401).json({error}));
-        });
+            .then(()=>{res.status(200).json({message:'Livre supprimé.'});
+            })
+            .catch(error => {res.status(401).json({error});
+             });
+     });
     }
    })
-   .catch(error=> {
+   .catch(error => {
     res.status(500).json({error});
 });
 };
