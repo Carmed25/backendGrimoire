@@ -139,10 +139,45 @@ exports.getAllBooks = (req, res, next)=>{
     .catch(error=>res.status(400).json({error}));
 };
 
-exports.bestRatingBook=(req,res, next)=>{
+exports.notationBook = async (req, res, next) => {
+    try{
+        const { rating } = req.body;
+        const bookId = req.params.id;
+        if (!bookId){
+            return res.status(400).json({message:' Id livre non trouvé!'})
+        }
+        const book = await Book.findOne({ _id: bookId })
+        if (!book){
+            return res.status(404).json({message:'livre non trouvé.'})
+        }
+      const existingRating = book.ratings.find((r) => r.userId === req.auth.userId); // cherche dans le tableau si userId d'une note et userId de la req sont = 
+      if (existingRating) {
+        return res.status(409).json({ error: "Vous avez déjà noté ce livre." });
+      }
+      book.ratings.push({ userId:req.auth.userId, grade: rating });
 
+      const totalRatings = book.ratings.reduce((sum, r) => sum + r.grade, 0);
+      book.averageRating = totalRatings / book.ratings.length;
+      
+      const updated = await book.save()
+        return res.status(200).json(updated );
+}catch(error){
+    next(error); 
+}
 };
 
-exports.notationBook=(req, res, next)=>{
+
+
+exports.bestRatingBook= async (req,res, next) => {
+    try{
+        const topBooks = await Book.find()
+        .sort({ averageRating:-1}) // tri décroissant
+        .limit(3);
+        res.status(200).json(topBooks);
+    }
+    catch (error) {
+        next(error);
+
+    }
 
 };
