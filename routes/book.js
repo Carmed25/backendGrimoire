@@ -4,6 +4,7 @@ const auth = require('../middleware/auth');
 const multer = require ('../middleware/multer-config')
 const bookCtrl = require ('../controllers/book');
 
+router.get('/bestrating', bookCtrl.bestRatingBook);
 router.post('/', auth, multer, bookCtrl.createBook);
 router.post('/:id/rating',auth, bookCtrl.notationBook)
 router.put('/:id',auth, multer, bookCtrl.modifyBook);
@@ -12,6 +13,5 @@ router.delete('/:id',auth, bookCtrl.deleteBook);
 router.get ('/:id', bookCtrl.getOneBook);
 //renvoie tous les books dans la base de données
 router.get('/', bookCtrl.getAllBooks);
-router.get('/bestrating', bookCtrl.bestRatingBook);
 
 module.exports = router;

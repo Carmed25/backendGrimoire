@@ -157,7 +157,8 @@ exports.notationBook = async (req, res, next) => {
       book.ratings.push({ userId:req.auth.userId, grade: rating });
 
       const totalRatings = book.ratings.reduce((sum, r) => sum + r.grade, 0);
-      book.averageRating = totalRatings / book.ratings.length;
+      const avgR = totalRatings / book.ratings.length; // moyenne
+      book.averageRating = Math.round(avgR * 10) / 10; // moyenne arrondie
       
       const updated = await book.save()
         return res.status(200).json(updated );
@@ -168,15 +169,16 @@ exports.notationBook = async (req, res, next) => {
 
 
 
-exports.bestRatingBook= async (req,res, next) => {
+exports.bestRatingBook= async (req,res) => {
     try{
-        const topBooks = await Book.find()
+        const topBooks = await Book.find({})
         .sort({ averageRating:-1}) // tri décroissant
         .limit(3);
-        res.status(200).json(topBooks);
+        res.json(topBooks);
     }
     catch (error) {
-        next(error);
+        console.error (error.message);
+        res.status(500).json({error});
 
     }
 
