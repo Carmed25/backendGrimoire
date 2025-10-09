@@ -2,6 +2,7 @@ const Book = require ('../models/Book');
 const path = require ('path');
 const fs = require ('fs');
 const sharp = require ('sharp');
+const { error } = require('console');
 
 
 exports.createBook = async (req,res,next)=>{
@@ -67,12 +68,23 @@ exports.modifyBook = async (req, res, next)=>{
             })
             .webp({quality:70})
             .toFile(outputPath);
-        //bookobjet nomifié avec body et url 
+        //bookobjet nomifié avec body et url , mise à jour de l'objet livre
         const bookParsed= req.body.book ? JSON.parse(req.body.book) : {};
         bookObject ={ 
             ...bookParsed,
             imageUrl: `${req.protocol}://${req.get('host')}/images/${filename}`
         };
+        const book = await Book.findOne({_id: req.params.id});
+        if (book && book.imageUrl){
+            const firstFilename = book.imageUrl.split('/images/')[1];
+            const firstPath = path.join(__dirname, '..' , 'images' , firstFilename);
+            fs.unlink(firstPath, err =>{
+                if (err){
+                    console.warn('Erreur de suppression ancienne image:', err.message);
+                }
+            });
+        }
+
         }else{
             // si pas de nouvelle image juste données du body
         bookObject = req.body.book ? JSON.parse(req.body.book) : { ... req.body};
@@ -107,18 +119,32 @@ exports.deleteBook = (req, res, next) => {
     }
     if (!book.userId || book.userId.toString() !== req.auth.userId) {
         return res.status(401).json({message :'Non autorisé.'});
-    } else {
+    }
+
+    if (book.imageUrl){
+    
         const filename = book.imageUrl.split('/images/')[1];
-        fs.unlink(`images/${filename}`, err => {
-            if (err) {
-                console.warn('Erreur de suppression image:', err);
+        const imagePath = path.join(__dirname, '..', 'images', filename);
+        fs.unlink(imagePath, err =>{
+            if (err){
+                console.warn ('erreur de suppression de image', err.message);
             }
+            //suppression de l'image et du livre.
             Book.deleteOne({_id: req.params.id})
-            .then(()=>{res.status(200).json({message:'Livre supprimé.'});
+            .then(()=>{res.status(200).json({message:'Livre et image supprimés.'});
             })
             .catch(error => {res.status(401).json({error});
              });
      });
+    } else{
+        // si pas d'image à supprimer
+        Book.deleteOne({_id: req.params.id})
+        .then(()=>{
+            res.status(200).json({message: 'Livre supprimé.'});
+        })
+        .catch(error=> {
+            res.status(401).json({error});
+        });
     }
    })
    .catch(error => {
