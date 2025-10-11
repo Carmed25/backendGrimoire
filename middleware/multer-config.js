@@ -16,19 +16,10 @@ const fileFilter = (req, file, callback)=>{
     }
     callback(null, true);
 };
- const upload = multer({
+const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
     limits: { fileSize :5 * 1024 * 1024} //taille 5 Mo
  });
-    //destination: (req, file, callback)=>{
-    //    callback(null, 'images');
-    //},
-    //filename:(req, file, callback)=>{
-    //    const name = file.originalname.split(' ').join('_');
-    //    const extension = MIME_TYPE[file.mimetype];
-    //    callback(null, name + Date.now()+ '.' + extension);
-    //}
-//});
 
 module.exports = upload.single('image');
